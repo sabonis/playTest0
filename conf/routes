@@ -22,3 +22,5 @@ GET         /assets/*file               controllers.Assets.versioned(path="/publ
 
 # User API
 GET         /users                      controllers.Users.getAll
+POST        /users/sexTwo               controllers.Users.getSexTwo
+POST        /users                      controllers.Users.insert

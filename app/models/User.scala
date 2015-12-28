@@ -1,14 +1,20 @@
 package models
 
-import com.google.inject.ImplementedBy
+import com.google.inject.{Singleton, ImplementedBy}
+import play.api.libs.json.Json
+import slick.dbio.DBIOAction
 
 import scala.concurrent.Future
 
 /**
   * Created by sabonis on 12/25/15.
   */
+object User extends {
+  implicit val userReads = Json.reads[User]
+}
+
 case class User(
-            id: Int,
+            id: Option[Int] = None,
             facebookId: Int,
             username: String,
             gender: Int
@@ -173,35 +179,47 @@ import slick.driver.JdbcProfile
 @ImplementedBy(classOf[UserDAOImpl0])
 trait UserDAO {
 
-  def all(): Future[List[User]]
-
+  def all: Future[List[User]]
   def insert(cat: User): Future[Unit]
+
 }
 
+@Singleton
 class UserDAOImpl0 extends HasDatabaseConfig[JdbcProfile] with UserDAO {
   protected val dbConfig = DatabaseConfigProvider.get[JdbcProfile](Play.current)
 
   import driver.api._
 
-  private val Cats = TableQuery[UsersTable]
+  private val Users = TableQuery[UsersTable]
 
-  val setup = DBIO.seq(
-    Cats.schema.create
+  val setup = DBIOAction.seq(
+    Users.schema.create,
+    Users += User(None, 1, "admin", 3),
+    Users += User(None, 1, "kk", 2),
+    Users += User(None, 1, "jj", 2),
+    Users += User(None, 1, "ii", 3)
   )
   db.run(setup)
 
-  override def all(): Future[List[User]] = db.run(Cats.result).map(_.toList)
+  override def all: Future[List[User]] = db.run(Users.result).map(_.toList)
 
-  override def insert(cat: User): Future[Unit] = db.run(Cats += cat).map(_ => ())
+  override def insert(user: User): Future[Unit] = {
+    //val userWithIdNone = user.copy(id = None)
+    db.run(Users += user).map(_ => ())
+  }
+
+  def withSexTwo: Future[List[User]] = db.run(
+    Users.filter(_.gender === 2).result
+  ).map(_.toList)
 
   private class UsersTable(tag: Tag) extends Table[User](tag, "User") {
 
-    def id = column[Int]("ID", O.PrimaryKey)
+    def id = column[Int]("ID", O.PrimaryKey, O.AutoInc)
     def facebookId = column[Int]("FACEBOOKID")
     def username = column[String]("USERNAME")
     def gender = column[Int]("GENDER")
 
-    def * = (id, facebookId, username, gender) <> (User.tupled, User.unapply)
+    def * = (id.?, facebookId, username, gender) <> ((User.apply _).tupled, User.unapply)
   }
 
 }
